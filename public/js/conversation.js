@@ -17,12 +17,15 @@ var ConversationPanel = (function () {
     },
     voices: {
       listen: 'en-US_BroadbandModel',
-      say: 'en-GB_KateVoice',
+      say: 'en-US_MichaelVoice',
     }
   };
 
   var stream = null;
-  var saying = false;
+  var sayList = [];
+  var sayEnabled = false;
+  var isSaying = false;
+  var wasListening = false;
   var listenVoiceSelect = document.querySelector('#listen-voice');
   var listeningButton = document.querySelector('#listening');
   var sayVoiceSelect = document.querySelector('#say-voice');
@@ -387,20 +390,27 @@ var ConversationPanel = (function () {
     }
   }
   function startSaying() {
-    sayingButton.textContent = "Mute.";
-    saying = true;
-    sayingButton.onclick = stopSaying;
+    if (!isSaying) {
+      sayingButton.textContent = "Mute.";
+      sayEnabled = true;
+      sayingButton.onclick = stopSaying;
+    }
   }
 
   function stopSaying() {
-    sayingButton.textContent = "Start speaker transcription.";
-    saying = false;
-    sayingButton.onclick = startSaying;
+    if (!isSaying) {
+      sayingButton.textContent = "Start speaker transcription.";
+      sayEnabled = false;
+      sayingButton.onclick = startSaying;
+    }
   }
 
-  function say(text) {
-    const wasListening = stream;
-    if (saying) {
+  function doSay(text) {
+    wasListening = wasListening || stream;
+    if (sayEnabled) {
+      isSaying = true;
+      listeningButton.disabled = true;
+      sayingButton.disabled = true;
       if (wasListening) {
         stopListening();
       }
@@ -414,35 +424,52 @@ var ConversationPanel = (function () {
       });
       audio.addEventListener('ended', function (err) {
         audio.remove();
-        if (wasListening) {
+        isSaying = false;
+        listeningButton.disabled = false;
+        sayingButton.disabled = false;
+        if (!trySay() && wasListening) {
+          wasListening = false;
           startListening();
         }
       });
     }
   }
+  function trySay() {
+    if (!isSaying && sayList.length > 0) {
+      doSay(sayList.pop());
+      return true;
+    }
+    return false;
+  }
+  function say(text) {
+    sayList.push(text);
+    trySay();
+  }
 
   function startListening() {
-    listeningButton.textContent = "Stop listening.";
-    if (stream) {
-      stopListening();
+    if (!isSaying) {
+      listeningButton.textContent = "Stop listening.";
+      if (stream) {
+        stopListening();
+      }
+      stream = WatsonSpeech.SpeechToText.recognizeMicrophone({
+        token: tokens.stt,
+        voice: settings.voices.listen,
+        objectMode: false,
+      });
+
+      stream.setEncoding('utf8'); // get text instead of Buffers for on data events
+
+      stream.on('data', function (data) {
+        sendMessage(data);
+      });
+
+      stream.on('error', function (err) {
+        console.log(err);
+      });
+
+      listeningButton.onclick = stopListening;
     }
-    stream = WatsonSpeech.SpeechToText.recognizeMicrophone({
-      token: tokens.stt,
-      voice: settings.voices.listen,
-      objectMode: false,
-    });
-
-    stream.setEncoding('utf8'); // get text instead of Buffers for on data events
-
-    stream.on('data', function (data) {
-      sendMessage(data);
-    });
-
-    stream.on('error', function (err) {
-      console.log(err);
-    });
-
-    listeningButton.onclick = stopListening;
   }
 
   function stopListening() {
