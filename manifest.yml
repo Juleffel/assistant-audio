@@ -1,6 +1,6 @@
 applications:
-- name: watson-assistant-simple
+- name: watson-assistant-audio
   command: npm start
   path: .
-  memory: 256M
+  memory: 64M
   instances: 1

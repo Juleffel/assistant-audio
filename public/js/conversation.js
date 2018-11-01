@@ -17,6 +17,16 @@ var ConversationPanel = (function () {
     }
   };
 
+  var stream = null;
+  var saying = false;
+  var listeningButton = document.querySelector('#listening');
+  var sayingButton = document.querySelector('#saying');
+
+  var tokens = {
+    tts: "",
+    stt: "",
+  }
+
   // Publicly accessible methods defined
   return {
     init: init,
@@ -28,7 +38,22 @@ var ConversationPanel = (function () {
   function init() {
     chatUpdateSetup();
     Api.sendRequest('', null);
+    fetchToken('/api/text-to-speech/token', 'tts');
+    fetchToken('/api/speech-to-text/token', 'stt');
+    listeningButton.onclick = startListening;
+    sayingButton.onclick = startSaying;
     setupInputBox();
+  }
+
+  function fetchToken(url, tokenName) {
+    fetch(url)
+      .then(function (response) {
+        return response.text();
+      }).then(function (token) {
+        tokens[tokenName] = token;
+      }).catch(function (error) {
+        console.log(error);
+      });
   }
   // Set up callbacks on payload setters in Api module
   // This causes the displayMessage function to be called when messages are sent / received
@@ -121,6 +146,9 @@ var ConversationPanel = (function () {
       (newPayload.output && newPayload.output.text);
     if (isUser !== null && textExists) {
       // Create new message generic elements
+      if (!isUser) {
+        say(newPayload.output.text);
+      }
       var responses = buildMessageDomElements(newPayload, isUser);
       var chatBoxElement = document.querySelector(settings.selectors.chatBox);
       var previousLatest = chatBoxElement.querySelectorAll((isUser ? settings.selectors.fromUser : settings.selectors.fromWatson) +
@@ -148,12 +176,12 @@ var ConversationPanel = (function () {
         scrollToChatBottom();
         setResponse(responses, isUser, chatBoxElement, index + 1, false);
       } else {
-        var userTypringField = document.getElementById('user-typing-field');
+        var userTypingField = document.getElementById('user-typing-field');
         if (res.typing) {
-          userTypringField.innerHTML = 'Watson Assistant Typing...';
+          userTypingField.innerHTML = 'Watson Assistant Typing...';
         }
         setTimeout(function () {
-          userTypringField.innerHTML = '';
+          userTypingField.innerHTML = '';
           setResponse(responses, isUser, chatBoxElement, index + 1, isTop);
         }, res.time);
       }
@@ -207,7 +235,7 @@ var ConversationPanel = (function () {
         for (i = 0; i < optionsList.length; i++) {
           if (optionsList[i].value) {
             list += '<li><div class="options-list" onclick="ConversationPanel.sendMessage(\'' +
-            optionsList[i].value.input.text + '\');" >' + optionsList[i].label + '</div></li>';
+              optionsList[i].value.input.text + '\');" >' + optionsList[i].label + '</div></li>';
           }
         }
         list += '</ul>';
@@ -327,4 +355,65 @@ var ConversationPanel = (function () {
       Common.fireEvent(inputBox, 'input');
     }
   }
+
+  /* Audio */
+  function startSaying() {
+    sayingButton.textContent = "Mute.";
+    saying = true;
+    sayingButton.onclick = stopSaying;
+  }
+
+  function stopSaying() {
+    sayingButton.textContent = "Start speaker transcription.";
+    saying = false;
+    sayingButton.onclick = startSaying;
+  }
+
+  function say(text) {
+    if (saying) {
+      stopListening();
+      const audio = WatsonSpeech.TextToSpeech.synthesize({
+        text,
+        access_token: tokens.tts,
+      });
+      audio.addEventListener('error', function (err) {
+        console.log('Audio error: ', err);
+      });
+      audio.addEventListener('ended', function (err) {
+        audio.remove();
+        startListening();
+      });
+    }
+  }
+
+  function startListening() {
+    listeningButton.textContent = "Stop listening.";
+    if (stream) {
+      stopListening();
+    }
+    stream = WatsonSpeech.SpeechToText.recognizeMicrophone({
+      token: tokens.stt,
+      objectMode: false,
+    });
+
+    stream.setEncoding('utf8'); // get text instead of Buffers for on data events
+
+    stream.on('data', function (data) {
+      sendMessage(data);
+    });
+
+    stream.on('error', function (err) {
+      console.log(err);
+    });
+
+    listeningButton.onclick = stopListening;
+  }
+
+  function stopListening() {
+    stream.stop.bind(stream)();
+    stream = null;
+    listeningButton.textContent = "Start Microphone Transcription.";
+    listeningButton.onclick = startListening;
+  }
+
 }());
