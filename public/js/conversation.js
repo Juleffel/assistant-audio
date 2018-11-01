@@ -14,12 +14,18 @@ var ConversationPanel = (function () {
     authorTypes: {
       user: 'user',
       watson: 'watson'
+    },
+    voices: {
+      listen: 'en-US_BroadbandModel',
+      say: 'en-GB_KateVoice',
     }
   };
 
   var stream = null;
   var saying = false;
+  var listenVoiceSelect = document.querySelector('#listen-voice');
   var listeningButton = document.querySelector('#listening');
+  var sayVoiceSelect = document.querySelector('#say-voice');
   var sayingButton = document.querySelector('#saying');
 
   var tokens = {
@@ -40,7 +46,11 @@ var ConversationPanel = (function () {
     Api.sendRequest('', null);
     fetchToken('/api/text-to-speech/token', 'tts');
     fetchToken('/api/speech-to-text/token', 'stt');
+    setListenVoice();
+    setSayVoice();
+    listenVoiceSelect.onchange = setListenVoice;
     listeningButton.onclick = startListening;
+    sayVoiceSelect.onchange = setSayVoice;
     sayingButton.onclick = startSaying;
     setupInputBox();
   }
@@ -144,11 +154,14 @@ var ConversationPanel = (function () {
     var isUser = isUserMessage(typeValue);
     var textExists = (newPayload.input && newPayload.input.text) ||
       (newPayload.output && newPayload.output.text);
+    if (newPayload.output && newPayload.output.text) {
+      newPayload.output.text.forEach(t => {
+        console.log(t);
+        say(t);
+      })
+    }
     if (isUser !== null && textExists) {
       // Create new message generic elements
-      if (!isUser) {
-        say(newPayload.output.text);
-      }
       var responses = buildMessageDomElements(newPayload, isUser);
       var chatBoxElement = document.querySelector(settings.selectors.chatBox);
       var previousLatest = chatBoxElement.querySelectorAll((isUser ? settings.selectors.fromUser : settings.selectors.fromWatson) +
@@ -357,6 +370,22 @@ var ConversationPanel = (function () {
   }
 
   /* Audio */
+  function setListenVoice() {
+    const voice = listenVoiceSelect.value;
+    if (voice) {
+      settings.voices.listen = voice;
+      if (stream) {
+        stopListening();
+        startListening();
+      }
+    }
+  }
+  function setSayVoice() {
+    const voice = sayVoiceSelect.value;
+    if (voice) {
+      settings.voices.say = voice;
+    }
+  }
   function startSaying() {
     sayingButton.textContent = "Mute.";
     saying = true;
@@ -370,10 +399,14 @@ var ConversationPanel = (function () {
   }
 
   function say(text) {
+    const wasListening = stream;
     if (saying) {
-      stopListening();
+      if (wasListening) {
+        stopListening();
+      }
       const audio = WatsonSpeech.TextToSpeech.synthesize({
         text,
+        voice: settings.voices.say,
         access_token: tokens.tts,
       });
       audio.addEventListener('error', function (err) {
@@ -381,7 +414,9 @@ var ConversationPanel = (function () {
       });
       audio.addEventListener('ended', function (err) {
         audio.remove();
-        startListening();
+        if (wasListening) {
+          startListening();
+        }
       });
     }
   }
@@ -393,6 +428,7 @@ var ConversationPanel = (function () {
     }
     stream = WatsonSpeech.SpeechToText.recognizeMicrophone({
       token: tokens.stt,
+      voice: settings.voices.listen,
       objectMode: false,
     });
 
@@ -410,8 +446,10 @@ var ConversationPanel = (function () {
   }
 
   function stopListening() {
-    stream.stop.bind(stream)();
-    stream = null;
+    if (stream) {
+      stream.stop.bind(stream)();
+      stream = null;
+    }
     listeningButton.textContent = "Start Microphone Transcription.";
     listeningButton.onclick = startListening;
   }

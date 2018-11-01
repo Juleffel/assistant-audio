@@ -19,6 +19,22 @@
   </div>
   <div id="contentParent" class="responsive-columns-wrapper">
     <div id="chat-column-holder" class="responsive-column content-column">
+      <div class="buttons">
+        <select id="listen-voice">
+          <option value="" selected>Your voice</option>
+          <option value="en-GB_BroadbandModel">GB</option>
+          <option value="en-US_BroadbandModel">US</option>
+        </select>
+        <button id="listening">Start Microphone Transcription</button>
+        <select id="say-voice">
+          <option value="" selected>Watson voice</option>
+          <option value="en-US_MichaelVoice">Michael (US)</option>
+          <option value="en-GB_KateVoice">Kate (GB)</option>
+          <option value="en-US_AllisonVoice">Allison (US)</option>
+          <option value="en-US_LisaVoice">Lisa (US)</option>
+        </select>
+        <button id="saying">Start Speaker Transcription</button>
+      </div>
       <div class="chat-column">
         <div id="scrollingChat"></div>
         <p class="user-typing" id="user-typing-field"></p>
@@ -28,10 +44,6 @@
         </label>
         <div class="disclaimer">
           * This system is for demonstration purposes only.
-          <div class="buttons">
-            <button id="listening">Start Microphone Transcription</button>
-            <button id="saying">Start Speaker Transcription</button>
-          </div>
         </div>
       </div>
     </div>
