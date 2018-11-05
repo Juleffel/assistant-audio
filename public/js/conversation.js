@@ -26,6 +26,7 @@ var ConversationPanel = (function () {
   var sayEnabled = false;
   var isSaying = false;
   var wasListening = false;
+  var translate = false;
   var listenVoiceSelect = document.querySelector('#listen-voice');
   var listeningButton = document.querySelector('#listening');
   var sayVoiceSelect = document.querySelector('#say-voice');
@@ -380,10 +381,31 @@ var ConversationPanel = (function () {
   }
 
   /* Audio */
+  function audioMessageReceived(text) {
+    if (translate) {
+      fetch(`/api/language-translator/translate?lang=${translate}&text=${encodeURIComponent(text)}`)
+        .then(function (response) {
+          return response.text();
+        }).then(function (translation) {
+          sendMessage(translation);
+        }).catch(function (error) {
+          console.error(error);
+        });
+    } else {
+      sendMessage(text);
+    }
+  }
   function setListenVoice() {
     const voice = listenVoiceSelect.value;
     if (voice) {
       settings.voices.listen = voice;
+      console.log(voice);
+      const lang = voice.substring(0, 2);
+      if (lang != 'en') {
+        translate = lang;
+      } else {
+        translate = false;
+      }
       if (stream) {
         stopListeningConfidence();
         startListeningConfidence();
@@ -481,7 +503,7 @@ var ConversationPanel = (function () {
         objectMode: true,
         format: false,
         word_confidence: true,
-        voice: settings.voices.listen,
+        model: settings.voices.listen,
       });
 
       // each result (sentence) gets it's own <span> because Watson will sometimes go back and change a word as it hears more context
@@ -515,13 +537,13 @@ var ConversationPanel = (function () {
               $curSentence.removeClass('interim').addClass('final');
 
               if (alternative.confidence > 0.95) {
-                sendMessage(alternative.transcript);
+                audioMessageReceived(alternative.transcript);
                 $curSentence = initOutputConfidence();
                 $voiceOutputButtonSent.show();
               } else {
                 // if we have the final text for that sentence, start a new one
                 $voiceOutputButtonOk.click(ev => {
-                  sendMessage(alternative.transcript);
+                  audioMessageReceived(alternative.transcript);
                   $curSentence = initOutputConfidence();
                   $voiceOutputButtonSent.show();
                 });

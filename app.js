@@ -21,6 +21,7 @@ const bodyParser = require('body-parser'); // parser for post requests
 const AuthorizationV1 = require('watson-developer-cloud/authorization/v1');
 const SpeechToTextV1 = require('watson-developer-cloud/speech-to-text/v1');
 const TextToSpeechV1 = require('watson-developer-cloud/text-to-speech/v1');
+const LanguageTranslatorV3 = require('watson-developer-cloud/language-translator/v3');
 const AssistantV1 = require('watson-developer-cloud/assistant/v1'); // watson sdk
 const vcapServices = require('vcap_services');
 
@@ -118,7 +119,7 @@ const sttCredentials = Object.assign(
     },
   vcapServices.getCredentials('speech_to_text') // pulls credentials from environment in bluemix, otherwise returns {}
 );
-var sttAuthService = new AuthorizationV1(sttCredentials);
+const sttAuthService = new AuthorizationV1(sttCredentials);
 app.use('/api/speech-to-text/token', function (req, res) {
   sttAuthService.getToken(
     {
@@ -126,7 +127,7 @@ app.use('/api/speech-to-text/token', function (req, res) {
     },
     function (err, token) {
       if (err) {
-        console.log('Error retrieving token: ', err);
+        console.error('Error retrieving token: ', err);
         res.status(500).send('Error retrieving token');
         return;
       }
@@ -147,7 +148,7 @@ const ttsCredentials = Object.assign(
     },
   vcapServices.getCredentials('text_to_speech') // pulls credentials from environment in bluemix, otherwise returns {}
 );
-var ttsAuthService = new AuthorizationV1(ttsCredentials);
+const ttsAuthService = new AuthorizationV1(ttsCredentials);
 app.use('/api/text-to-speech/token', function (req, res) {
   ttsAuthService.getToken(
     {
@@ -155,13 +156,51 @@ app.use('/api/text-to-speech/token', function (req, res) {
     },
     function (err, token) {
       if (err) {
-        console.log('Error retrieving token: ', err);
+        console.error('Error retrieving token: ', err);
         res.status(500).send('Error retrieving token');
         return;
       }
       res.send(token);
     }
   );
+});
+
+// Language translator
+const ltCredentials = Object.assign(
+  process.env.LANGUAGE_TRANSLATOR_USERNAME ?
+    {
+      username: process.env.LANGUAGE_TRANSLATOR_USERNAME,
+      password: process.env.LANGUAGE_TRANSLATOR_PASSWORD,
+    } : {
+      iam_apikey: process.env.LANGUAGE_TRANSLATOR_IAM_APIKEY,
+      iam_url: process.env.LANGUAGE_TRANSLATOR_IAM_URL,
+    },
+  vcapServices.getCredentials('language_translator'),
+  {
+    url: process.env.LANGUAGE_TRANSLATOR_URL,
+    version: process.env.LANGUAGE_TRANSLATOR_VERSION,
+  }
+);
+const languageTranslator = new LanguageTranslatorV3(ltCredentials);
+app.use('/api/language-translator/translate', function (req, res) {
+  if (!req.query.text || !req.query.lang) {
+    res.status(500).send('Must provide lang and text arguments.');
+    return;
+  }
+  languageTranslator.translate(
+    {
+      text: req.query.text,
+      source: req.query.lang,
+      target: 'en'
+    },
+    function (err, translation) {
+      if (err) {
+        console.error('Error translating: ', err);
+        res.status(500).send('Error translating');
+        return;
+      }
+      res.send(translation.translations[0].translation);
+    });
 });
 
 module.exports = app;
