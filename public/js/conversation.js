@@ -73,7 +73,7 @@ var ConversationPanel = (function () {
       }).then(function (token) {
         tokens[tokenName] = token;
       }).catch(function (error) {
-        console.log(error);
+        console.error(error);
       });
   }
   // Set up callbacks on payload setters in Api module
@@ -167,7 +167,7 @@ var ConversationPanel = (function () {
       (newPayload.output && newPayload.output.text);
     if (newPayload.output && newPayload.output.text) {
       newPayload.output.text.forEach(t => {
-        console.log(t);
+        console.log("Saying:", t);
         say(t);
       })
     }
@@ -399,7 +399,6 @@ var ConversationPanel = (function () {
     const voice = listenVoiceSelect.value;
     if (voice) {
       settings.voices.listen = voice;
-      console.log(voice);
       const lang = voice.substring(0, 2);
       if (lang != 'en') {
         translate = lang;
@@ -460,7 +459,7 @@ var ConversationPanel = (function () {
         access_token: tokens.tts,
       });
       audio.addEventListener('error', function (err) {
-        console.log('Audio error: ', err);
+        console.error('Audio error: ', err);
         endSay(audio);
       });
       audio.addEventListener('ended', function (err) {
@@ -510,7 +509,7 @@ var ConversationPanel = (function () {
       let $curSentence = initOutputConfidence();
 
       stream.on('error', function (err) {
-        console.log(err);
+        console.error(err);
         $curSentence = initOutputConfidence();
       });
 
