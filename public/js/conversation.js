@@ -25,6 +25,7 @@ var ConversationPanel = (function () {
   var sayList = [];
   var sayEnabled = false;
   var isSaying = false;
+  var isListening = false;
   var wasListening = false;
   var translate = false;
   var listenVoiceSelect = document.querySelector('#listen-voice');
@@ -486,7 +487,11 @@ var ConversationPanel = (function () {
     $voiceOutputButtonKo.hide();
     $voiceOutputButtonKo.off();
     $voiceOutputButtonSent.hide();
-    $voiceOutputDiv.show();
+    if (isListening) {
+      $voiceOutputDiv.show();
+    } else {
+      $voiceOutputDiv.hide();
+    }
     return $('<span class="interim">&nbsp;</span>').appendTo($voiceOutputConfidence);
   }
 
@@ -496,6 +501,7 @@ var ConversationPanel = (function () {
       if (stream) {
         stopListeningConfidence();
       }
+      isListening = true;
 
       stream = WatsonSpeech.SpeechToText.recognizeMicrophone({
         token: tokens.stt,
@@ -572,6 +578,7 @@ var ConversationPanel = (function () {
       stream.stop.bind(stream)();
       stream = null;
     }
+    isListening = false;
     $voiceOutputDiv.hide();
     listeningButton.textContent = "Start Microphone Transcription.";
     listeningButton.onclick = startListeningConfidence;
