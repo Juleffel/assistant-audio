@@ -183,15 +183,15 @@ const ltCredentials = Object.assign(
 );
 const languageTranslator = new LanguageTranslatorV3(ltCredentials);
 app.use('/api/language-translator/translate', function (req, res) {
-  if (!req.query.text || !req.query.lang) {
-    res.status(500).send('Must provide lang and text arguments.');
+  if (!req.query.text || !req.query.langSource || !req.query.langTarget) {
+    res.status(500).send('Must provide langSource, langTarget and text arguments.');
     return;
   }
   languageTranslator.translate(
     {
       text: req.query.text,
-      source: req.query.lang,
-      target: 'en'
+      source: req.query.langSource,
+      target: req.query.langTarget,
     },
     function (err, translation) {
       if (err) {

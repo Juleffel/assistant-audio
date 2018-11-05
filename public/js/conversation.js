@@ -27,7 +27,9 @@ var ConversationPanel = (function () {
   var isSaying = false;
   var isListening = false;
   var wasListening = false;
-  var translate = false;
+  var translateInput = false;
+  var translateOutput = false;
+  var assistantLang = 'en';
   var listenVoiceSelect = document.querySelector('#listen-voice');
   var listeningButton = document.querySelector('#listening');
   var sayVoiceSelect = document.querySelector('#say-voice');
@@ -166,12 +168,6 @@ var ConversationPanel = (function () {
     var isUser = isUserMessage(typeValue);
     var textExists = (newPayload.input && newPayload.input.text) ||
       (newPayload.output && newPayload.output.text);
-    if (newPayload.output && newPayload.output.text) {
-      newPayload.output.text.forEach(t => {
-        console.log("Saying:", t);
-        say(t);
-      })
-    }
     if (isUser !== null && textExists) {
       // Create new message generic elements
       var responses = buildMessageDomElements(newPayload, isUser);
@@ -195,6 +191,15 @@ var ConversationPanel = (function () {
       if (res.type !== 'pause') {
         var currentDiv = getDivObject(res, isUser, isTop);
         chatBoxElement.appendChild(currentDiv);
+        // Say
+        if (res.say) {
+          console.log("Trying to say:", res.say);
+          if (Array.isArray(res.say)) {
+            res.say.forEach(t => say(t));
+          } else {
+            say(res.say);
+          }
+        }
         // Class to start fade in animation
         currentDiv.classList.add('load');
         // Move chat to the most recent messages when new messages are added
@@ -287,12 +292,13 @@ var ConversationPanel = (function () {
       var img = '<div><img src="' + gen.source + '" width="300"></div>';
       responses.push({
         type: gen.response_type,
-        innerhtml: title + img
+        innerhtml: title + img,
       });
     } else if (gen.response_type === 'text') {
       responses.push({
         type: gen.response_type,
-        innerhtml: gen.text
+        innerhtml: gen.text,
+        say: gen.text,
       });
     } else if (gen.response_type === 'pause') {
       responses.push({
@@ -309,7 +315,8 @@ var ConversationPanel = (function () {
       var list = getOptions(gen.options, preference);
       responses.push({
         type: gen.response_type,
-        innerhtml: title + list
+        innerhtml: title + list,
+        say: [gen.title].concat(gen.options.map(opt => opt.label)),
       });
     }
   }
@@ -382,12 +389,17 @@ var ConversationPanel = (function () {
   }
 
   /* Audio */
+  function callTranslate(langSource, langTarget, text, cb) {
+    return fetch(`/api/language-translator/translate?langSource=${langSource}&langTarget=${langTarget}&text=${encodeURIComponent(text)}`)
+      .then(function (response) {
+        return response.text();
+      });
+  }
+
   function audioMessageReceived(text) {
-    if (translate) {
-      fetch(`/api/language-translator/translate?lang=${translate}&text=${encodeURIComponent(text)}`)
-        .then(function (response) {
-          return response.text();
-        }).then(function (translation) {
+    if (translateInput) {
+      callTranslate(translateInput, assistantLang, text)
+        .then(function (translation) {
           sendMessage(translation);
         }).catch(function (error) {
           console.error(error);
@@ -401,10 +413,10 @@ var ConversationPanel = (function () {
     if (voice) {
       settings.voices.listen = voice;
       const lang = voice.substring(0, 2);
-      if (lang != 'en') {
-        translate = lang;
+      if (lang != assistantLang) {
+        translateInput = lang;
       } else {
-        translate = false;
+        translateInput = false;
       }
       if (stream) {
         stopListeningConfidence();
@@ -416,6 +428,12 @@ var ConversationPanel = (function () {
     const voice = sayVoiceSelect.value;
     if (voice) {
       settings.voices.say = voice;
+      const lang = voice.substring(0, 2);
+      if (lang != assistantLang) {
+        translateOutput = lang;
+      } else {
+        translateOutput = false;
+      }
     }
   }
   function startSaying() {
@@ -435,7 +453,9 @@ var ConversationPanel = (function () {
   }
 
   function endSay(audio) {
-    audio.remove();
+    if (audio) {
+      audio.remove();
+    }
     isSaying = false;
     listeningButton.disabled = false;
     sayingButton.disabled = false;
@@ -445,6 +465,20 @@ var ConversationPanel = (function () {
     }
   }
 
+  function textToSpeech(text, cb) {
+    const audio = WatsonSpeech.TextToSpeech.synthesize({
+      text,
+      voice: settings.voices.say,
+      access_token: tokens.tts,
+    });
+    audio.addEventListener('error', function (err) {
+      console.error('Audio error: ', err);
+      cb(audio);
+    });
+    audio.addEventListener('ended', function (err) {
+      cb(audio);
+    });
+  }
   function doSay(text) {
     wasListening = wasListening || stream;
     if (sayEnabled & tokens.tts != '') {
@@ -454,18 +488,18 @@ var ConversationPanel = (function () {
       if (wasListening) {
         stopListeningConfidence();
       }
-      const audio = WatsonSpeech.TextToSpeech.synthesize({
-        text,
-        voice: settings.voices.say,
-        access_token: tokens.tts,
-      });
-      audio.addEventListener('error', function (err) {
-        console.error('Audio error: ', err);
-        endSay(audio);
-      });
-      audio.addEventListener('ended', function (err) {
-        endSay(audio);
-      });
+      if (translateOutput) {
+        callTranslate(assistantLang, translateOutput, text)
+          .then(function (translation) {
+            console.log("Translate say:", translation);
+            textToSpeech(translation, endSay);
+          }).catch(function (error) {
+            console.error(error);
+            endSay();
+          });
+      } else {
+        textToSpeech(text, endSay);
+      }
     }
   }
   function trySay() {
@@ -476,7 +510,7 @@ var ConversationPanel = (function () {
     return false;
   }
   function say(text) {
-    sayList.push(text);
+    sayList.unshift(text);
     trySay();
   }
 
