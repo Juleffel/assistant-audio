@@ -27,6 +27,7 @@ You can view a [demo][demo_url] of this app.
     - Click **Show** to view the service credentials.
     - Copy the `apikey` value, or copy the `username` and `password` values if your service instance doesn't provide an `apikey`.
     - Copy the `url` value.
+1. Create also an instance of Text to Speech and an instance Speech to Text on IBM Cloud.
 
 ## Configuring the application
 
@@ -89,6 +90,7 @@ You can view a [demo][demo_url] of this app.
     ```
     WORKSPACE_ID=522be-7b41-ab44-dec3-g1eab2ha73c6
     ```
+9. Add the Speech to Text and Text to Speech credentials by getting them from IBM Cloud and putting them in .env
 
 ## Running locally
 
@@ -147,7 +149,7 @@ Find more open source projects on the
 [IBM Github Page](http://ibm.github.io/).
 
 
-[demo_url]: http://conversation-simple.ng.bluemix.net/
+[demo_url]: http://watson-assistant-audio.eu-de.mybluemix.net/
 [doc_intents]: (https://console.bluemix.net/docs/services/conversation/intents-entities.html#planning-your-entities)
 [docs]: https://console.bluemix.net/docs/services/conversation/index.html
 [docs_landing]: (https://console.bluemix.net/docs/services/conversation/index.html)
