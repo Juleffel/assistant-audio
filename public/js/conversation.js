@@ -30,6 +30,11 @@ var ConversationPanel = (function () {
   var listeningButton = document.querySelector('#listening');
   var sayVoiceSelect = document.querySelector('#say-voice');
   var sayingButton = document.querySelector('#saying');
+  var $voiceOutputDiv = $('.output-voice');
+  var $voiceOutputConfidence = $('#output-voice-confidence');
+  var $voiceOutputButtonOk = $('#voice-ok');
+  var $voiceOutputButtonKo = $('#voice-ko');
+  var $voiceOutputButtonSent = $('#voice-sent');
 
   var tokens = {
     tts: "",
@@ -48,11 +53,13 @@ var ConversationPanel = (function () {
     chatUpdateSetup();
     Api.sendRequest('', null);
     fetchToken('/api/text-to-speech/token', 'tts');
+    sayingButton.disabled = false;
     fetchToken('/api/speech-to-text/token', 'stt');
+    listeningButton.disabled = false;
     setListenVoice();
     setSayVoice();
     listenVoiceSelect.onchange = setListenVoice;
-    listeningButton.onclick = startListening;
+    listeningButton.onclick = startListeningConfidence;
     sayVoiceSelect.onchange = setSayVoice;
     sayingButton.onclick = startSaying;
     setupInputBox();
@@ -378,8 +385,8 @@ var ConversationPanel = (function () {
     if (voice) {
       settings.voices.listen = voice;
       if (stream) {
-        stopListening();
-        startListening();
+        stopListeningConfidence();
+        startListeningConfidence();
       }
     }
   }
@@ -405,14 +412,25 @@ var ConversationPanel = (function () {
     }
   }
 
+  function endSay(audio) {
+    audio.remove();
+    isSaying = false;
+    listeningButton.disabled = false;
+    sayingButton.disabled = false;
+    if (!trySay() && wasListening) {
+      wasListening = false;
+      startListeningConfidence();
+    }
+  }
+
   function doSay(text) {
     wasListening = wasListening || stream;
-    if (sayEnabled) {
+    if (sayEnabled & tokens.tts != '') {
       isSaying = true;
       listeningButton.disabled = true;
       sayingButton.disabled = true;
       if (wasListening) {
-        stopListening();
+        stopListeningConfidence();
       }
       const audio = WatsonSpeech.TextToSpeech.synthesize({
         text,
@@ -421,16 +439,10 @@ var ConversationPanel = (function () {
       });
       audio.addEventListener('error', function (err) {
         console.log('Audio error: ', err);
+        endSay(audio);
       });
       audio.addEventListener('ended', function (err) {
-        audio.remove();
-        isSaying = false;
-        listeningButton.disabled = false;
-        sayingButton.disabled = false;
-        if (!trySay() && wasListening) {
-          wasListening = false;
-          startListening();
-        }
+        endSay(audio);
       });
     }
   }
@@ -446,39 +458,102 @@ var ConversationPanel = (function () {
     trySay();
   }
 
-  function startListening() {
-    if (!isSaying) {
+  function initOutputConfidence() {
+    $voiceOutputConfidence.html('');
+    $voiceOutputButtonOk.hide();
+    $voiceOutputButtonOk.off();
+    $voiceOutputButtonKo.hide();
+    $voiceOutputButtonKo.off();
+    $voiceOutputButtonSent.hide();
+    $voiceOutputDiv.show();
+    return $('<span class="interim">&nbsp;</span>').appendTo($voiceOutputConfidence);
+  }
+
+  function startListeningConfidence() {
+    if (!isSaying & tokens.stt != '') {
       listeningButton.textContent = "Stop listening.";
       if (stream) {
-        stopListening();
+        stopListeningConfidence();
       }
+
       stream = WatsonSpeech.SpeechToText.recognizeMicrophone({
         token: tokens.stt,
+        objectMode: true,
+        format: false,
+        word_confidence: true,
         voice: settings.voices.listen,
-        objectMode: false,
       });
 
-      stream.setEncoding('utf8'); // get text instead of Buffers for on data events
-
-      stream.on('data', function (data) {
-        sendMessage(data);
-      });
+      // each result (sentence) gets it's own <span> because Watson will sometimes go back and change a word as it hears more context
+      let $curSentence = initOutputConfidence();
 
       stream.on('error', function (err) {
         console.log(err);
+        $curSentence = initOutputConfidence();
       });
 
-      listeningButton.onclick = stopListening;
+      // a result is approximately equivalent to a sentence, and is the granularity that alternatives are selected on
+      stream.on('data', function (data) {
+
+        if (data.results) {
+          data.results.forEach(function (result) {
+            // only final results include word confidence
+            if (result.final) {
+              let alternative = result.alternatives[0];
+
+              var html = alternative.word_confidence.map(function (pair) {
+                // the word_confidence array includes a sub-array for wach word like so: ['word', 0.9]
+                // the score is a range from 1 (100% confident) to 0 (not at all confident)
+                // RGB color values go on a scale of 0-255 with 0,0,0 being black and 255,255,255 being white.
+                // In this case, we want confident words to be 0 (black), and the least confident words to be 200 (light grey)
+                var shade = 200 - Math.round(pair[1] * 200);
+                return '<span style="color: rgb(' + shade + ',' + shade + ',' + shade + ')">' + pair[0] + '</span>';
+              }).join(' ') + ' ';
+
+              $curSentence.html(html);
+
+              $curSentence.removeClass('interim').addClass('final');
+
+              if (alternative.confidence > 0.95) {
+                sendMessage(alternative.transcript);
+                $curSentence = initOutputConfidence();
+                $voiceOutputButtonSent.show();
+              } else {
+                // if we have the final text for that sentence, start a new one
+                $voiceOutputButtonOk.click(ev => {
+                  sendMessage(alternative.transcript);
+                  $curSentence = initOutputConfidence();
+                  $voiceOutputButtonSent.show();
+                });
+                $voiceOutputButtonKo.click(ev => {
+                  $curSentence = initOutputConfidence();
+                });
+                $voiceOutputButtonOk.show();
+                $voiceOutputButtonKo.show();
+              }
+
+            } else {
+              // for interim results
+              $curSentence = initOutputConfidence();
+              $curSentence.html(result.alternatives[0].transcript);
+            }
+          });
+        }
+
+      });
+
+      listeningButton.onclick = stopListeningConfidence;
     }
   }
 
-  function stopListening() {
+  function stopListeningConfidence() {
     if (stream) {
       stream.stop.bind(stream)();
       stream = null;
     }
+    $voiceOutputDiv.hide();
     listeningButton.textContent = "Start Microphone Transcription.";
-    listeningButton.onclick = startListening;
+    listeningButton.onclick = startListeningConfidence;
   }
 
 }());

@@ -25,7 +25,7 @@
           <option value="en-GB_BroadbandModel">GB</option>
           <option value="en-US_BroadbandModel">US</option>
         </select>
-        <button id="listening">Start Microphone Transcription</button>
+        <button id="listening" disabled>Start Microphone Transcription</button>
         <select id="say-voice">
           <option value="" selected>Watson voice</option>
           <option value="en-US_MichaelVoice">Michael (US)</option>
@@ -33,7 +33,7 @@
           <option value="en-US_AllisonVoice">Allison (US)</option>
           <option value="en-US_LisaVoice">Lisa (US)</option>
         </select>
-        <button id="saying">Start Speaker Transcription</button>
+        <button id="saying" disabled>Start Speaker Transcription</button>
       </div>
       <div class="chat-column">
         <div id="scrollingChat"></div>
@@ -42,6 +42,12 @@
           <input id="textInput" class="input responsive-column" placeholder="Type something" type="text" onkeydown="ConversationPanel.inputKeyDown(event, this)"
             autofocus>
         </label>
+        <div class="output-voice">
+          🎙 <span id="output-voice-confidence"></span>
+          <span class="button ko" id="voice-ko">👎</span>
+          <span class="button ok" id="voice-ok">👌</span>
+          <span class="button sent" id="voice-sent">✔</span>
+        </div>
         <div class="disclaimer">
           * This system is for demonstration purposes only.
         </div>
@@ -56,6 +62,8 @@
     </div>
   </div>
 
+  <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+    crossorigin="anonymous"></script>
   <script src="js/watson-speech.js"></script>
   <script src="js/common.js"></script>
   <script src="js/api.js"></script>

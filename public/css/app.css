@@ -20,6 +20,43 @@ div {
   padding: 0.5rem;
 }
 
+.output-voice {
+  background-color: #EEE;
+  border-radius: 5px;
+  box-shadow: #CCC;
+  padding: 3px;
+  position: relative;
+  display: none;
+}
+
+.output-voice .button {
+  padding: 3px;
+  border-radius: 50%;
+  background-color: #DDD;
+  width: 24px;
+  height: 24px;
+  display: block;
+  position: absolute;
+  top: 0;
+  box-shadow: inset -3px -4px 4px rgba(0,0,0,0.15);
+  cursor: pointer;
+}
+.output-voice .button.ok {
+  background-color: #00B4A0;
+  right: -30px;
+}
+.output-voice .button.sent {
+  background-color: #00B4A0;
+  cursor: default;
+  right: -30px;
+  padding: 1px;
+  text-align: center;
+}
+.output-voice .button.ko {
+  background-color: #B44040;
+  right: -60px;
+}
+
 #view-change-button {
   display: inline-block;
   position: absolute;
