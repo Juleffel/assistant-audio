@@ -193,7 +193,7 @@ var ConversationPanel = (function () {
         chatBoxElement.appendChild(currentDiv);
         // Say
         if (res.say) {
-          console.log("Trying to say:", res.say);
+          console.log("Say:", res.say);
           if (Array.isArray(res.say)) {
             res.say.forEach(t => say(t));
           } else {
