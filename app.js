@@ -26,6 +26,17 @@ const vcapServices = require('vcap_services');
 
 var app = express();
 
+app.enable('trust proxy');
+
+app.use((req, res, next) => {
+  if (req.secure || process.env.BLUEMIX_REGION === undefined) {
+    next();
+  } else {
+    console.log('Redirecting to https');
+    res.redirect('https://' + req.headers.host + req.url);
+  }
+});
+
 // Bootstrap application settings
 app.use(express.static('./public')); // load UI from public folder
 app.use(bodyParser.json());
