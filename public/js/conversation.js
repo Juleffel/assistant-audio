@@ -53,9 +53,12 @@ var ConversationPanel = (function () {
   };
 
   // Initialize the module
-  function init(workspaceId) {
+  function init(workspaceId, lang) {
     if (workspaceId) {
       Api.setWorkspace(workspaceId);
+    }
+    if (lang) {
+      assistantLang = lang;
     }
     chatUpdateSetup();
     Api.sendRequest('', null);
