@@ -21,11 +21,11 @@
   <div id="contentParent" class="responsive-columns-wrapper">
     <div id="aframe-column-holder" class="responsive-column content-column">
       <a-scene embedded>
-        <a-box position="-1 0.5 -3" rotation="0 45 0" color="#4CC3D9"></a-box>
-        <a-sphere position="0 1.25 -5" radius="1.25" color="#EF2D5E"></a-sphere>
-        <a-cylinder position="1 0.75 -3" radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
-        <a-plane position="0 0 -4" rotation="-90 0 0" width="4" height="4" color="#7BC8A4"></a-plane>
-        <a-sky color="#ECECEC"></a-sky>
+        <a-box position="-1 0.5 -3" rotation="0 45 0" color="#4CC3D9" id="aframe-box"></a-box>
+        <a-sphere position="0 1.25 -5" radius="1.25" color="#EF2D5E" id="aframe-sphere"></a-sphere>
+        <a-cylinder position="1 0.75 -3" radius="0.5" height="1.5" color="#FFC65D" id="aframe-cylinder"></a-cylinder>
+        <a-plane position="0 0 -4" rotation="-90 0 0" width="4" height="4" color="#7BC8A4" id="aframe-plane"></a-plane>
+        <a-sky color="#ECECEC" id="aframe-sky"></a-sky>
       </a-scene>
     </div>
     <div id="chat-column-holder" class="responsive-column content-column">
@@ -97,7 +97,8 @@
   <script src="js/api.js"></script>
   <script src="js/conversation.js"></script>
   <script src="js/payload.js"></script>
-  <script src="js/global.js"></script>
+  <script src="js/aframe-panel.js"></script>
+  <script src="js/global-aframe.js"></script>
   <script type="text/javascript" src="https://cdn.rawgit.com/watson-developer-cloud/watson-developer-cloud.github.io/master/analytics.js"></script>
 </body>
 
