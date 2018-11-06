@@ -47,13 +47,16 @@ var ConversationPanel = (function () {
 
   // Publicly accessible methods defined
   return {
-    init: init,
-    inputKeyDown: inputKeyDown,
-    sendMessage: sendMessage
+    init,
+    inputKeyDown,
+    sendMessage,
   };
 
   // Initialize the module
-  function init() {
+  function init(workspaceId) {
+    if (workspaceId) {
+      Api.setWorkspace(workspaceId);
+    }
     chatUpdateSetup();
     Api.sendRequest('', null);
     fetchToken('/api/text-to-speech/token', 'tts');
@@ -193,7 +196,6 @@ var ConversationPanel = (function () {
         chatBoxElement.appendChild(currentDiv);
         // Say
         if (res.say) {
-          console.log("Say:", res.say);
           if (Array.isArray(res.say)) {
             res.say.forEach(t => say(t));
           } else {
