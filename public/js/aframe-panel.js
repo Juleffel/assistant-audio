@@ -72,13 +72,6 @@ var AframePanel = (function () {
     return settings.colors[settings.frToEn[colNameFr]];
   }
 
-  function getIntents(payload) {
-    intents = {};
-    payload.intents.forEach(intent => {
-      intents[intent.intent] = intent.confidence;
-    });
-    return intents;
-  }
   function getEntities(payload) {
     entities = {};
     payload.entities.forEach(entity => {
@@ -142,33 +135,25 @@ var AframePanel = (function () {
   // Function called when the Assistant respond to a text wich has been sent to it.
   function receivedMessage(payload) {
     console.log(payload);
-    let intents = getIntents(payload);
     let entities = getEntities(payload);
-    payload.intents.forEach(intent => {
-      if (intent.confidence > 0) {
-        switch (intent.intent) {
-          case 'order':
-            switch (entities.action) {
-              case 'changer':
-                colorChange(entities);
-                break;
-              case 'ajouter':
-                addObject(entities);
-                break;
-              case 'supprimer':
-                removeObject(entities);
-                break;
-              default:
-                console.error(`Action ${entities.action} not implemented yet`);
-            };
-            break;
-          default:
-            console.error(`Intent ${intent.intent} not implemented yet`);
-        }
-
-      } else {
-        console.log(`Not enough confidence for intent ${intent.intent} (${intent.confidence})`);
-      }
-    });
+    if (entities.object && entities.color) {
+      addObject(entities);
+    }
+    switch (entities.action) {
+      case 'changer':
+        colorChange(entities);
+        break;
+      case 'ajouter':
+        addObject(entities);
+        break;
+      case 'supprimer':
+        removeObject(entities);
+        break;
+      case undefined:
+        console.log('No action seen');
+        break;
+      default:
+        console.error(`Action ${entities.action} not implemented yet`);
+    };
   }
 }());
