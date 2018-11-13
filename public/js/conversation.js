@@ -20,6 +20,8 @@ var ConversationPanel = (function () {
       say: 'en-US_MichaelVoice',
     }
   };
+  var watsonResponses = [];
+  var processingWatsonResponses = false;
 
   var stream = null;
   var sayList = [];
@@ -186,40 +188,69 @@ var ConversationPanel = (function () {
           element.classList.remove('latest');
         });
       }
-      setResponse(responses, isUser, chatBoxElement, 0, true);
+      setResponses(responses, isUser, chatBoxElement, 0, true);
     }
   }
 
-  // Recurisive function to add responses to the chat area
-  function setResponse(responses, isUser, chatBoxElement, index, isTop) {
+  function setResponse(res, isUser, chatBoxElement, isTop, next) {
+    if (res.type !== 'pause') {
+      var currentDiv = getDivObject(res, isUser, isTop);
+      chatBoxElement.appendChild(currentDiv);
+      // Say
+      if (res.say) {
+        if (Array.isArray(res.say)) {
+          res.say.forEach(t => say(t));
+        } else {
+          say(res.say);
+        }
+      }
+      // Class to start fade in animation
+      currentDiv.classList.add('load');
+      // Move chat to the most recent messages when new messages are added
+      scrollToChatBottom();
+      next(false);
+    } else {
+      var userTypingField = document.getElementById('user-typing-field');
+      if (res.typing) {
+        userTypingField.innerHTML = 'Watson Assistant Typing...';
+      }
+      setTimeout(function () {
+        userTypingField.innerHTML = '';
+        next(isTop);
+      }, res.time);
+    }
+  }
+
+  function setUserResponses(responses, chatBoxElement, index, isTop) {
     if (index < responses.length) {
       var res = responses[index];
-      if (res.type !== 'pause') {
-        var currentDiv = getDivObject(res, isUser, isTop);
-        chatBoxElement.appendChild(currentDiv);
-        // Say
-        if (res.say) {
-          if (Array.isArray(res.say)) {
-            res.say.forEach(t => say(t));
-          } else {
-            say(res.say);
-          }
-        }
-        // Class to start fade in animation
-        currentDiv.classList.add('load');
-        // Move chat to the most recent messages when new messages are added
-        scrollToChatBottom();
-        setResponse(responses, isUser, chatBoxElement, index + 1, false);
-      } else {
-        var userTypingField = document.getElementById('user-typing-field');
-        if (res.typing) {
-          userTypingField.innerHTML = 'Watson Assistant Typing...';
-        }
-        setTimeout(function () {
-          userTypingField.innerHTML = '';
-          setResponse(responses, isUser, chatBoxElement, index + 1, isTop);
-        }, res.time);
-      }
+      setResponse(res, true, chatBoxElement, isTop, (newIsTop) => {
+        setUserResponses(responses, true, chatBoxElement, index + 1, newIsTop);
+      });
+    }
+  }
+
+  function popWatsonResponses(chatBoxElement, isTop) {
+    if (!processingWatsonResponses && watsonResponses.length > 0) {
+      processingWatsonResponses = true;
+      setResponse(watsonResponses.pop(), false, chatBoxElement, isTop, (newIsTop) => {
+        processingWatsonResponses = false;
+        popWatsonResponses(chatBoxElement, newIsTop);
+      })
+    }
+  }
+
+  function setWatsonResponses(responses, chatBoxElement, isTop) {
+    responses.map(res => watsonResponses.unshift(res));
+    popWatsonResponses(chatBoxElement, isTop);
+  }
+
+  // Recursive function to add responses to the chat area
+  function setResponses(responses, isUser, chatBoxElement, index, isTop) {
+    if (isUser) {
+      setUserResponses(responses, chatBoxElement, index, isTop);
+    } else {
+      setWatsonResponses(responses, chatBoxElement, isTop);
     }
   }
 
